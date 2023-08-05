@@ -1,0 +1,12 @@
+Flask~=2.3.2
+SQLAlchemy~=2.0.19
+Flask-SQLAlchemy~=3.0.5
+Werkzeug~=2.3.6
+Flask-Login~=0.6.2
+psycopg2-binary~=2.9.6
+Bootstrap-Flask~=2.3.0
+email-validator~=2.0.0.post2
+Flask-WTF~=1.1.1
+python-dotenv~=1.0.0
+WTForms~=3.0.1
+pytz~=2023.3
