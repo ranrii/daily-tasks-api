@@ -185,7 +185,24 @@ def search_task():
 
 @app.route("/topic/<int:topic_id>/task", methods=["GET"])
 def all_task(topic_id):
-    pass
+    result = Task.query.filter_by(topic_id=topic_id).all()
+    if result is None:
+        return abort(404, f"not found tasks associated with topic id={topic_id}")
+    response = {
+        "num_of_tasks": len(result),
+        "tasks": [
+            {
+                "id": task.id,
+                "title": task.title,
+                "status": task.status,
+                "created_at": task.created_at,
+                "due_time": task.due_time,
+                "last_update": task.last_update,
+            } for task in result]
+    }
+    if result[0] is not None:
+        response["topic"] = {"id": result[0].topic.id, "topic_title": result[0].topic.title}
+    return jsonify(response), 200
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["POST"])
