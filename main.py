@@ -29,6 +29,11 @@ def not_found(error):
     return jsonify(error={"code": 404, "message": error.description}), 404
 
 
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify(error={"code": 401, "message": error.description}), 401
+
+
 @app.errorhandler(204)
 def no_content(error):
     return jsonify(error={"code": 204, "message": error.description}), 204
@@ -103,7 +108,7 @@ def update_topic():
     topic = Topic.query.filter_by(id=topic_id).first()
     include = request.args.get("include") == "True"
     if not topic:
-        return abort(404, f"no topic with {topic_id} to update")
+        return abort(404, f"no topic with id={topic_id} to update")
     if new_title is None and new_desc is None:
         return abort(400, "you must provide 'title' or 'description' to update")
     if new_title == topic.title and new_desc == topic.description:
@@ -116,14 +121,24 @@ def update_topic():
         topic.description = new_desc
     db.session.commit()
     if include:
-        return jsonify({"success": f"successfully updated topic {topic.id}",
+        return jsonify({"success": f"successfully updated topic id={topic.id}",
                         "topic": dict(topic)}), 200
-    return jsonify({"success": f"successfully updated topic {topic.id}"}), 200
+    return jsonify({"success": f"successfully updated topic id={topic.id}"}), 200
 
 
 @app.route("/topic", methods=["DELETE"])
 def delete_topic():
-    pass
+    topic_id = request.args.get("topic_id")
+    if topic_id is None:
+        return abort(400, f"you must provide {topic_id} to remove")
+
+    topic = Topic.query.filter_by(id=topic_id).first()
+    if topic is None:
+        return abort(404, f"no topic with id={topic_id} found")
+
+    db.session.remove(topic)
+    db.session.commit()
+    return jsonify({"success": f"successfully removed topic with id={topic.id}"})
 
 
 @app.route("/task/search", methods=["GET"])
