@@ -44,14 +44,7 @@ def all_topic():
     result = Topic.query.all()
     topics = {
         "num_of_topic": len(result),
-        "topics": [
-            {
-                "id": topic.id,
-                "title": topic.title,
-                "description": topic.description,
-                "tasks": [task.title for task in topic.tasks],
-                "num_of_tasks": len(topic.tasks)
-            } for topic in result]
+        "topics": [topic.to_dict() for topic in result]
     }
     return jsonify(topics), 200
 
@@ -62,14 +55,7 @@ def search_topic():
     result = Topic.query.filter(Topic.title.like(f"%{search_query}%")).all()
     response = {
         "num_of_topic": len(result),
-        "topics": [
-            {
-                "id": topic.id,
-                "title": topic.title,
-                "description": topic.description,
-                "tasks": [task.title for task in topic.tasks],
-                "num_of_tasks": len(topic.tasks)
-            } for topic in result]
+        "topics": [topic.to_dict() for topic in result]
     }
     return jsonify(response), 200
 
@@ -92,11 +78,7 @@ def add_topic():
     db.session.commit()
     if include:
         return jsonify({"success": f"successfully add new topic with id={new_topic.id}",
-                        "topic": {"id": new_topic.id,
-                                  "title": new_topic.title,
-                                  "description": new_topic.description,
-                                  "created_at": timestamp},
-                        }), 200
+                        "topic": new_topic.to_dict()}), 200
     return jsonify({"success": f"successfully add new topic with id={new_topic.id}"}), 200
 
 
@@ -122,7 +104,7 @@ def update_topic():
     db.session.commit()
     if include:
         return jsonify({"success": f"successfully updated topic id={topic.id}",
-                        "topic": dict(topic)}), 200
+                        "topic": topic.to_dict()}), 200
     return jsonify({"success": f"successfully updated topic id={topic.id}"}), 200
 
 
@@ -150,37 +132,16 @@ def search_task():
     if topic_id:
         results = Task.query.filter_by(topic_id=topic_id).filter(Task.title.like(f"%{search_title}%")).all()
         tasks = {
-            "results": len(results),
-            "tasks": [
-                {
-                    "id": task.id,
-                    "title": task.title,
-                    "created_at": task.created_at,
-                    "due_time": task.due_time,
-                    "status": task.status,
-                    "topic_id": task.topic.id,
-                    "topic_name": task.topic.title} for task in results
-            ]
-        }
+            "no_of_results": len(results),
+            "tasks": [task.to_dict() for task in results]}
         return jsonify(tasks), 200
 
-    results = Task.query.filter_by(title=search_title).all()
+    results = Task.query.filter(Task.title.like(f"%{search_title}%")).all()
     tasks = {
         "results": len(results),
-        "tasks": [
-            {
-                "id": task.id,
-                "title": task.title,
-                "created_at": task.created_at,
-                "due_time": task.due_time,
-                "status": task.status,
-                "topic_id": task.topic.id,
-                "topic_name": task.topic.title} for task in results
-        ]
+        "tasks": [task.to_dict() for task in results]
     }
-    if tasks:
-        return jsonify(tasks), 200
-    return jsonify(error={"code": 404, "message": "not found"}), 404
+    return jsonify(tasks), 200
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["GET"])
@@ -190,24 +151,52 @@ def all_task(topic_id):
         return abort(404, f"not found tasks associated with topic id={topic_id}")
     response = {
         "num_of_tasks": len(result),
-        "tasks": [
-            {
-                "id": task.id,
-                "title": task.title,
-                "status": task.status,
-                "created_at": task.created_at,
-                "due_time": task.due_time,
-                "last_update": task.last_update,
-            } for task in result]
+        "tasks": [task.to_dict() for task in result]
     }
-    if result[0] is not None:
-        response["topic"] = {"id": result[0].topic.id, "topic_title": result[0].topic.title}
     return jsonify(response), 200
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["POST"])
 def add_task(topic_id):
-    pass
+    if topic_id is None:
+        return abort(400, "invalid topic id")
+
+    topic = Topic.query.filter_by(id=topic_id).first()
+    if topic is None:
+        return abort(
+            404,
+            f"no topic with id={topic_id} found, you may need to create new topic before creating new task"
+        )
+
+    title = limit_whitespace(request.args.get("title"))
+    due_time = limit_whitespace(request.args.get("due"))
+    status = limit_whitespace(request.args.get("status"))
+    include = request.args.get("include") == "True"
+    if title is None or due_time is None or status is None:
+        return abort(400, "missing required argument(s)")
+
+    timestamp = datetime.now(pytz.utc).isoformat()
+    new_task = Task(
+        title=title,
+        created_at=timestamp,
+        due_time=due_time,
+        status=status,
+        topic=topic
+    )
+    db.session.add(new_task)
+    db.session.commit()
+    if include:
+        return jsonify(
+            {
+                "success": f"successfully added a new task with task id={new_task.id} for topic id={new_task.topic.id}",
+                "task": new_task.to_dict()
+             }
+        )
+    return jsonify(
+        {
+            "success": f"successfully added a new task with task id={new_task.id} for topic id={new_task.topic.id}"
+        }
+    )
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["PUT"])

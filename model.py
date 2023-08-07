@@ -30,6 +30,17 @@ class Topic(db.Model):
     # user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     # users = relationship("User", secondary=user_topic, back_populates="topics")
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "created_at": self.created_at,
+            "last_update": self.last_update,
+            "tasks": [task.to_dict() for task in self.tasks],
+            "no_of_tasks": len(self.tasks)
+        }
+
 
 class Task(db.Model):
     __tablename__ = "tasks"
@@ -44,6 +55,18 @@ class Task(db.Model):
     topic = relationship("Topic", back_populates="tasks")
     # not implemented
     # users = relationship("User", secondary=user_task, back_populates="tasks")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "created_at": self.created_at,
+            "due_time": self.due_time,
+            "status": self.status,
+            "last_update": self.last_update,
+            "topic_title": self.topic.title,
+            "topic_id": self.topic_id
+        }
 
 
 # class User(db.Model):  # not implemented
