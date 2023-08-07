@@ -1,4 +1,4 @@
-from flask import Flask, request, abort, jsonify, make_response
+from flask import Flask, request, abort, jsonify
 import os
 from model import db, Topic, Task
 from datetime import datetime
@@ -16,8 +16,6 @@ debug = os.environ.get("DEBUG") == "TRUE"
 db.init_app(app)
 db.create_all()
 
-
-# TODO: try _asdict(), dict(topic), topic._asdict()
 
 @app.errorhandler(400)
 def bad_request(error):
@@ -90,9 +88,9 @@ def update_topic():
     except ValueError:
         return abort(400, "invalid 'topic_id' provided")
     new_title = limit_whitespace(request.args.get("title"))
-    new_desc = request.args.get("description").strip()
+    new_desc = limit_whitespace(request.args.get("description"))
     topic = Topic.query.filter_by(id=topic_id).first()
-    include = request.args.get("include") == "True"
+    include = limit_whitespace(request.args.get("include")) == "True"
     if topic is None:
         return abort(404, f"no topic with id={topic_id} to update")
     if new_title is None and new_desc is None:
@@ -181,7 +179,7 @@ def add_task(topic_id):
     title = limit_whitespace(request.args.get("title"))
     due_time = limit_whitespace(request.args.get("due"))
     status = limit_whitespace(request.args.get("status"))
-    include = request.args.get("include") == "True"
+    include = limit_whitespace(request.args.get("include")) == "True"
     if title is None or due_time is None or status is None:
         return abort(400, "missing required argument(s)")
 
@@ -211,7 +209,8 @@ def add_task(topic_id):
 
 @app.route("/topic/<int:topic_id>/task", methods=["PUT"])
 def edit_task(topic_id):
-    task_id = request.args.get("task_id")
+    task_id = limit_whitespace(request.args.get("task_id"))
+    include = limit_whitespace(request.args.get("include")) == "True"
     try:
         task_id = int(task_id)
     except ValueError:
@@ -220,12 +219,40 @@ def edit_task(topic_id):
         return abort(400, "you must provide 'task_id' to update")
     task = Task.query.filter_by(topic_id=topic_id, id=task_id).first()
     if task is None:
-        return abort(404, f"no such task with task id={task_id}")
+        return abort(404, f"no such task with task id={task_id} found")
+
+    new_title = limit_whitespace(request.args.get("title"))
+    new_due_time = limit_whitespace(request.args.get("due_time"))
+    new_status = limit_whitespace(request.args.get("status"))
+
+    if new_title is not None and new_title != task.title:
+        task.title = new_title
+    elif new_due_time is not None and new_due_time != task.due_time:
+        task.due_time = new_due_time
+    elif new_status is not None and new_status != task.status:
+        task.status = new_status
+        db.session.commit()
+        if include:
+            return jsonify({"success": f"successfully updated task id={task.id}, in topic id = {task.topic.id}",
+                            "task": task.to_dict()})
+        return jsonify({"success": f"successfully updated task id={task.id}, in topic id = {task.topic.id}"})
+    return abort(204, "you provided nothing to update")
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["DELETE"])
 def delete_task(topic_id):
-    pass
+    task_id = limit_whitespace(request.args.get("task_id"))
+    try:
+        task_id = int(task_id)
+    except ValueError:
+        return abort(400, "invalid 'task_id' provided")
+
+    task = Task.query.filter_by(id=task_id, topic_id=topic_id).first()
+    if task is None:
+        return abort(404, f"no such task with id={task_id} associated with topic id={topic_id} is found")
+    db.session.delete(task)
+    db.session.commit()
+    return jsonify({"success": f"successfully removed task with id={task_id}"}), 200
 
 
 if __name__ == "__main__":
