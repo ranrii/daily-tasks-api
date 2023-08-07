@@ -85,11 +85,15 @@ def add_topic():
 @app.route("/topic", methods=["PUT"])
 def update_topic():
     topic_id = limit_whitespace(request.args.get("topic_id"))
+    try:
+        topic_id = int(topic_id)
+    except ValueError:
+        return abort(400, "invalid 'topic_id' provided")
     new_title = limit_whitespace(request.args.get("title"))
     new_desc = request.args.get("description").strip()
     topic = Topic.query.filter_by(id=topic_id).first()
     include = request.args.get("include") == "True"
-    if not topic:
+    if topic is None:
         return abort(404, f"no topic with id={topic_id} to update")
     if new_title is None and new_desc is None:
         return abort(400, "you must provide 'title' or 'description' to update")
@@ -110,7 +114,11 @@ def update_topic():
 
 @app.route("/topic", methods=["DELETE"])
 def delete_topic():
-    topic_id = request.args.get("topic_id")
+    topic_id = limit_whitespace(request.args.get("topic_id"))
+    try:
+        topic_id = int(topic_id)
+    except ValueError:
+        return abort(400, "invalid 'topic_id' provided")
     if topic_id is None:
         return abort(400, f"you must provide {topic_id} to remove")
 
@@ -125,11 +133,16 @@ def delete_topic():
 
 @app.route("/task/search", methods=["GET"])
 def search_task():
-    topic_id = request.args.get("topic_id")
+    topic_id = limit_whitespace(request.args.get("topic_id"))
+    try:
+        topic_id = int(topic_id)
+    except ValueError:
+        return abort(400, "invalid 'topic_id' provided")
+
     search_title = limit_whitespace(request.args.get("title"))
     if not search_title:
         return abort(400, "You must provide 'title' for your search")
-    if topic_id:
+    if topic_id is not None:
         results = Task.query.filter_by(topic_id=topic_id).filter(Task.title.like(f"%{search_title}%")).all()
         tasks = {
             "no_of_results": len(results),
@@ -158,9 +171,6 @@ def all_task(topic_id):
 
 @app.route("/topic/<int:topic_id>/task", methods=["POST"])
 def add_task(topic_id):
-    if topic_id is None:
-        return abort(400, "invalid topic id")
-
     topic = Topic.query.filter_by(id=topic_id).first()
     if topic is None:
         return abort(
@@ -175,7 +185,7 @@ def add_task(topic_id):
     if title is None or due_time is None or status is None:
         return abort(400, "missing required argument(s)")
 
-    timestamp = datetime.now(pytz.utc).isoformat()
+    timestamp = datetime.now(pytz.utc).replace(microsecond=0).isoformat()
     new_task = Task(
         title=title,
         created_at=timestamp,
@@ -191,17 +201,26 @@ def add_task(topic_id):
                 "success": f"successfully added a new task with task id={new_task.id} for topic id={new_task.topic.id}",
                 "task": new_task.to_dict()
              }
-        )
+        ), 200
     return jsonify(
         {
             "success": f"successfully added a new task with task id={new_task.id} for topic id={new_task.topic.id}"
         }
-    )
+    ), 200
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["PUT"])
 def edit_task(topic_id):
-    pass
+    task_id = request.args.get("task_id")
+    try:
+        task_id = int(task_id)
+    except ValueError:
+        return abort(400, "invalid 'task_id' provided")
+    if task_id is None:
+        return abort(400, "you must provide 'task_id' to update")
+    task = Task.query.filter_by(topic_id=topic_id, id=task_id).first()
+    if task is None:
+        return abort(404, f"no such task with task id={task_id}")
 
 
 @app.route("/topic/<int:topic_id>/task", methods=["DELETE"])
