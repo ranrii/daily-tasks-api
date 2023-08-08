@@ -1,6 +1,7 @@
+import pytz
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
-
+from datetime import datetime
 db = SQLAlchemy()
 
 # not implemented
@@ -31,15 +32,18 @@ class Topic(db.Model):
     # users = relationship("User", secondary=user_topic, back_populates="topics")
 
     def to_dict(self):
-        return {
+        topic_dict = {
             "id": self.id,
             "title": self.title,
-            "description": self.description,
-            "created_at": self.created_at,
-            "last_update": self.last_update,
+            "created_at": datetime.isoformat(self.created_at.replace(tzinfo=pytz.utc)),
             "tasks": [task.to_dict() for task in self.tasks],
             "no_of_tasks": len(self.tasks)
         }
+        if self.last_update is not None:
+            topic_dict["last_update"] = datetime.isoformat(self.last_update.replace(tzinfo=pytz.utc))
+        if self.description is not None:
+            topic_dict["description"] = self.description
+        return topic_dict
 
 
 class Task(db.Model):
@@ -57,16 +61,18 @@ class Task(db.Model):
     # users = relationship("User", secondary=user_task, back_populates="tasks")
 
     def to_dict(self):
-        return {
+        task_dict = {
             "id": self.id,
             "title": self.title,
-            "created_at": self.created_at,
-            "due_time": self.due_time,
+            "created_at": datetime.isoformat(self.created_at.replace(tzinfo=pytz.utc)),
+            "due_time": datetime.isoformat(self.due_time.replace(tzinfo=pytz.utc)),
             "status": self.status,
-            "last_update": self.last_update,
             "topic_title": self.topic.title,
             "topic_id": self.topic_id
         }
+        if self.last_update is not None:
+            task_dict["last_update"] = datetime.isoformat(self.last_update.replace(tzinfo=pytz.utc))
+        return task_dict
 
 
 # class User(db.Model):  # not implemented
