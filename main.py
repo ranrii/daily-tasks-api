@@ -1,19 +1,24 @@
-from flask import Flask, request, abort, jsonify
 import os
-from model import db, Topic, Task
 from datetime import datetime
-from dotenv import load_dotenv # TODO: Remove dotenv dependency before deployment
 import pytz
+from dotenv import load_dotenv
+from flask import Flask, request, abort, jsonify
+from flask_cors import CORS
+from flask_migrate import Migrate
 from utils import limit_whitespace, dt_from_string
 
+# TODO: Remove below dependencies before deployment
+from model import db, Topic, Task
 load_dotenv()
 
 
 app = Flask(__name__)
+cors = CORS(app)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///task.db")
 debug = os.environ.get("DEBUG") == "TRUE"
 db.init_app(app)
+migrate = Migrate(app, db)
 
 with app.app_context():
     db.create_all()
@@ -304,4 +309,4 @@ def delete_task(topic_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=debug)
+    app.run(debug=debug, port=8080)
