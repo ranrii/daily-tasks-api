@@ -1,7 +1,5 @@
-import os
 from datetime import datetime
 import pytz
-from dotenv import load_dotenv
 from flask import Flask, request, abort, jsonify
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -10,15 +8,10 @@ from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
 from model import db, Topic, Task, User
 
-# TODO: Remove below dependencies before deployment
-load_dotenv()
 
-
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 cors = CORS(app)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///task.db")
-debug = os.environ.get("DEBUG") == "TRUE"
+app.config.from_pyfile("config.py")
 db.init_app(app)
 migrate = Migrate(app, db)
 
@@ -48,7 +41,6 @@ def unsupported(error):
 
 @app.route("/topic", methods=["GET"])
 def all_topic():
-    print(get_ip_addr())
     result = Topic.query.order_by(func.coalesce(Topic.last_update, Topic.created_at)).all()
     topics = {
         "no_of_topic": len(result),
@@ -343,4 +335,4 @@ def login():
 
 
 if __name__ == "__main__":
-    app.run(debug=debug, port=8080)
+    app.run(port=8080)
