@@ -33,7 +33,7 @@ class Topic(db.Model):
 
     def to_dict(self):
         topic_dict = {
-            "id": self.id,
+            "id": str(self.id),
             "title": self.title,
             "emoji": self.emoji,
             "created_at": datetime.isoformat(self.created_at.replace(tzinfo=pytz.utc)),
@@ -64,7 +64,7 @@ class Task(db.Model):
 
     def to_dict(self):
         task_dict = {
-            "id": self.id,
+            "id": str(self.id),
             "title": self.title,
             "detail": self.detail,
             "emoji": self.emoji,
@@ -72,7 +72,7 @@ class Task(db.Model):
             "due_time": self.due_time_to_date(),
             "status": self.status,
             "topic_title": self.topic.title,
-            "topic_id": self.topic_id,
+            "topic_id": str(self.topic_id),
             "editStatus": False,
         }
         if self.last_update is not None:
@@ -83,15 +83,21 @@ class Task(db.Model):
         due_time = self.due_time.replace(tzinfo=pytz.utc)
         return {"month": due_time.strftime("%b"), "day": due_time.day}
 
-# class User(db.Model):  # not implemented
-#     __tablename__ = "users"
-#     id = db.Column(db.Integerm, primary_key=True)
-#     username = db.Column(db.String, unique=True, nullable=False)
-#     password = db.Column(db.String, nullable=False)
-#     email = db.Column(db.String, nullable=False)
-#     created_at = db.Column(db.DateTime, nullable=False)
-#     role = db.Column(db.String, nullable=False)
-#     image_url = db.Coulum(db.String)
+
+class User(db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, unique=True, nullable=False)
+    password = db.Column(db.String, nullable=False)
+    first_name = db.Column(db.String, nullable=False)
+    last_name = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    last_active = db.Column(db.DateTime, nullable=False)
+    login_ip = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+    is_block = db.Column(db.Boolean, nullable=False)
+#   role = db.Column(db.String, nullable=False)
+#     image_url = db.Column(db.String)
 #     # relations
 #     topics = relationship("Topic", secondary=user_topic, back_populates="users")
 #     tasks = relationship("Task", secondary=user_task, back_populates="users")

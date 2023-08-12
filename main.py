@@ -5,11 +5,12 @@ from dotenv import load_dotenv
 from flask import Flask, request, abort, jsonify
 from flask_cors import CORS
 from flask_migrate import Migrate
-from utils import limit_whitespace, dt_from_string
+from utils import limit_whitespace, dt_from_string, get_ip_addr
 from sqlalchemy import func
+from werkzeug.security import generate_password_hash, check_password_hash
+from model import db, Topic, Task, User
 
 # TODO: Remove below dependencies before deployment
-from model import db, Topic, Task
 load_dotenv()
 
 
@@ -47,6 +48,7 @@ def unsupported(error):
 
 @app.route("/topic", methods=["GET"])
 def all_topic():
+    print(get_ip_addr())
     result = Topic.query.order_by(func.coalesce(Topic.last_update, Topic.created_at)).all()
     topics = {
         "no_of_topic": len(result),
@@ -74,8 +76,8 @@ def add_topic():
     title = limit_whitespace(data.get("title"))
     emoji = limit_whitespace(data.get("emoji"))
     include = limit_whitespace(data.get("include", "false")).lower() == "true"
-    if title is None:
-        return abort(400, "You must provide 'title' for your new topic")
+    if [title, emoji] == [None, None]:
+        return abort(400, "You must provide 'title' and 'emoji' for your new topic")
 
     new_topic = Topic(
         title=limit_whitespace(title),
@@ -104,12 +106,12 @@ def update_topic():
     include = limit_whitespace(data.get("include", "false")).lower() == "true"
     if topic is None:
         return abort(404, f"no topic with id={topic_id} to update")
-    if new_title is None and new_emoji is None:
-        return abort(400, "you must provide 'title' or 'description' to update")
+    if [new_title, new_emoji] == [None, None]:
+        return abort(400, "you must provide 'title' or 'emoji' to update")
 
     if new_title is not None and new_title != topic.title:
         topic.title = new_title
-    elif new_emoji is not None and new_emoji != topic.emoji:
+    if new_emoji is not None and new_emoji != topic.emoji:
         topic.emoji = new_emoji
     else:
         return jsonify(caution={"message": "you provided same data as in the database and nothing got updated"})
@@ -218,12 +220,12 @@ def add_task(topic_id):
     detail = limit_whitespace(data.get("detail"))
     emoji = limit_whitespace(data.get("emoji"))
     due_time = dt_from_string(limit_whitespace(data.get("due_time")))
-    status = limit_whitespace(data.get("status", "next"))
-    possible_status = ["next", "ongoing", "finished"]
+    status = limit_whitespace(data.get("status"))
+    include = limit_whitespace(data.get("include", "false")).lower() == "true"
+
+    possible_status = ["NextUp", "InProgress", "Complete", "Unknown"]
     if status not in possible_status:
         return abort(400, f"invalid status provided can only be one of: {possible_status}")
-    status = status.lower()
-    include = limit_whitespace(data.get("include", "false")).lower() == "true"
     if None in [title, detail, emoji, due_time, status]:
         return abort(400, "'title', 'due_time', 'detail' and 'emoji' values are required")
 
@@ -277,19 +279,19 @@ def edit_task(topic_id):
     include = limit_whitespace(data.get("include", "false")).lower() == "true"
     if [new_title, new_detail, new_emoji, new_due_time, new_status] is [None, None, None, None, None]:
         return abort(400, "you must provide 'title', 'detail', 'emoji', 'due_time' or 'status' to update")
-    possible_status = ["next", "ongoing", "finished"]
+    possible_status = ["NextUp", "InProgress", "Complete", "Unknown"]
     if new_status is not None and new_status not in possible_status:
         return abort(400, f"invalid status provided can only be one of: {possible_status}")
 
     if new_status is not None and new_status != task.status:
         task.status = new_status
-    elif new_title is not None and new_title != task.title:
+    if new_title is not None and new_title != task.title:
         task.title = new_title
-    elif new_detail is not None and new_detail != task.detail:
+    if new_detail is not None and new_detail != task.detail:
         task.detail = new_detail
-    elif new_emoji is not None and new_emoji != task.emoji:
+    if new_emoji is not None and new_emoji != task.emoji:
         task.emoji = new_emoji
-    elif new_due_time is not None and new_due_time != task.due_time.replace(tzinfo=pytz.utc):
+    if new_due_time is not None and new_due_time != task.due_time.replace(tzinfo=pytz.utc):
         task.due_time = new_due_time
     else:
         return jsonify(caution={"message": "you provided same data as in the database and nothing got updated"})
@@ -319,6 +321,25 @@ def delete_task(topic_id):
     db.session.delete(task)
     db.session.commit()
     return jsonify({"success": f"successfully removed a task", "task": {"id": task.id, "title": task.title}}), 200
+
+
+@app.route("/register", methods=["POST"])
+def resister():
+    data = request.form.to_dict()
+    user = User()
+    user.username = data.get("username")
+    user.password = generate_password_hash(data.get("password"), method="pbkdf2", salt_length=10)
+    user.first_name = data.get("first_name")
+    user.last_name = data.get("last_name")
+    user.email = user.get("email")
+    user.login_ip = get_ip_addr()
+    user.created_at, user.last_active = datetime.utcnow()
+    user.is_block = False
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    pass
 
 
 if __name__ == "__main__":

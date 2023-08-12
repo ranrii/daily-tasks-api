@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from flask import abort
+from flask import abort, request
 import pytz
 from urllib.parse import unquote
 
@@ -24,3 +24,7 @@ def dt_from_string(datetime_string):
 
     dt_out = dt_out.astimezone(tz=pytz.utc)
     return dt_out
+
+
+def get_ip_addr():
+    return request.headers.get("x-Forwarded-For", request.headers.get("X-Real-IP", request.remote_addr))
