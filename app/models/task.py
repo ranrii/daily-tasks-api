@@ -2,6 +2,7 @@ from datetime import datetime
 import pytz
 from sqlalchemy.orm import relationship
 from app.extensions import db
+from app.models.topic import Topic
 
 
 class Task(db.Model):
@@ -10,13 +11,13 @@ class Task(db.Model):
     title = db.Column(db.String, nullable=False)
     detail = db.Column(db.String, nullable=False)
     emoji = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False)
-    due_time = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    due_time = db.Column(db.DateTime(timezone=True), nullable=False)
     status = db.Column(db.String, nullable=False)
-    last_update = db.Column(db.DateTime)
+    last_update = db.Column(db.DateTime(timezone=True))
     # relations
-    topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"))
-    topic = relationship("Topic", back_populates="tasks")
+    topic_id = db.Column(db.Integer, db.ForeignKey(Topic.id))
+    topic = relationship(Topic.__name__, back_populates=Topic.tasks)
     # not implemented
     # users = relationship("User", secondary=user_task, back_populates="tasks")
 

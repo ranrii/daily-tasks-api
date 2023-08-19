@@ -58,6 +58,7 @@ def add_task(topic_id):
         topic=topic
     )
     db.session.add(new_task)
+    topic.progression_calc()
     db.session.commit()
     if include:
         return jsonify(
@@ -115,6 +116,7 @@ def edit_task(topic_id):
         return jsonify(caution={"message": "you provided same data as in the database and nothing got updated"})
 
     task.last_update = datetime.now(pytz.utc).replace(microsecond=0)
+    task.topic.progression_calc()
     db.session.commit()
     if include:
         return jsonify({"success": f"successfully updated a task",
@@ -137,5 +139,6 @@ def delete_task(topic_id):
     if task_title != task.title:
         return abort(400, "provided task title are not matched")
     db.session.delete(task)
+    task.topic.progression_calc()
     db.session.commit()
     return jsonify({"success": f"successfully removed a task", "task": {"id": task.id, "title": task.title}}), 200

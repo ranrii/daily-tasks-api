@@ -195,6 +195,7 @@ def all_task(topic_id):
         "num_of_tasks": len(result),
         "tasks": [task.to_dict() for task in result]
     }
+    print(response)
     return jsonify(response), 200
 
 
@@ -308,6 +309,7 @@ def delete_task(topic_id):
     task = Task.query.filter_by(id=task_id, topic_id=topic_id).first()
     if task is None:
         return abort(404, f"no such task with id={task_id} associated with topic id={topic_id} is found")
+    print(task_title, task.title)
     if task_title != task.title:
         return abort(400, "provided task title are not matched")
     db.session.delete(task)

@@ -25,6 +25,8 @@ class Topic(db.Model):
     emoji = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False)
     last_update = db.Column(db.DateTime)
+    #status = db.Column(db.String, nullable=False)
+    #pogression = db.Column(db.Float, nullable=False)
     # relations
     tasks = relationship("Task", back_populates="topic")
     # not implemented

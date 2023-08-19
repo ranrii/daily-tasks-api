@@ -46,6 +46,7 @@ def add_topic():
         emoji=emoji,
         created_at=timestamp,
     )
+    new_topic.progression_calc()
     db.session.add(new_topic)
     db.session.commit()
     if include:

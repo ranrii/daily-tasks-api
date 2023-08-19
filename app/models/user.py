@@ -11,7 +11,7 @@ class User(db.Model):
     email = db.Column(db.String, nullable=False)
     last_active = db.Column(db.DateTime, nullable=False)
     login_ip = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False)
     is_block = db.Column(db.Boolean, nullable=False)
 #   role = db.Column(db.String, nullable=False)
 #     image_url = db.Column(db.String)
