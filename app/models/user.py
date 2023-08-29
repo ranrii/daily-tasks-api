@@ -1,4 +1,16 @@
+from datetime import datetime
+
+import pytz
+from sqlalchemy.orm import relationship
 from app.extensions import db
+
+
+association_table = db.Table(
+    "association_table",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id"), primary_key=True),
+    db.Column("topic_id", db.Integer, db.ForeignKey("topics.id"), primary_key=True)
+)
 
 
 class User(db.Model):
@@ -6,15 +18,20 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
     password = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    is_block = db.Column(db.Boolean, nullable=False)
+    profile = relationship("Profile", uselist=False, back_populates="user")
+    topics = relationship("Topic", secondary=association_table, lazy="subquery", back_populates="users")
+    tasks = relationship("Task", secondary=association_table, lazy="subquery", back_populates="users")
+
+
+class Profile(db.Model):
+    __tablename__ = "profiles"
+    id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
-    email = db.Column(db.String, nullable=False)
-    last_active = db.Column(db.DateTime, nullable=False)
+    created = db.Column(db.DateTime(timezone=True), default=datetime.now(pytz.utc))
+    last_active = db.Column(db.DateTime(timezone=True), default=datetime.now(pytz.utc), onupdate=datetime.now(pytz.utc))
     login_ip = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False)
-    is_block = db.Column(db.Boolean, nullable=False)
-#   role = db.Column(db.String, nullable=False)
-#     image_url = db.Column(db.String)
-#     # relations
-#     topics = relationship("Topic", secondary=user_topic, back_populates="users")
-#     tasks = relationship("Task", secondary=user_task, back_populates="users")
+    user_id = db.Column(db.Integer, db.ForeignKey(User.id))
+    user = relationship(User.__name__, uselist=False, back_populates="profile")

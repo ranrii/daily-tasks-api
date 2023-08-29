@@ -33,7 +33,6 @@ def all_topic():
 
 @topic_bp.route("", methods=["POST"])
 def add_topic():
-    timestamp = datetime.now(pytz.utc).replace(microsecond=0)
     data = request.form.to_dict()
     title = limit_whitespace(data.get("title"))
     emoji = limit_whitespace(data.get("emoji"))
@@ -44,15 +43,15 @@ def add_topic():
     new_topic = Topic(
         title=limit_whitespace(title),
         emoji=emoji,
-        created_at=timestamp,
     )
     new_topic.progression_calc()
     db.session.add(new_topic)
     db.session.commit()
     if include:
+        topic = Topic.query.filter_by(id=new_topic.id).first()
         return jsonify({"success": f"successfully add new topic",
-                        "topic": new_topic.to_dict()}), 200
-    return jsonify({"success": f"successfully add new topic", "topic_id": new_topic.id}), 200
+                        "topic": topic.to_dict()}), 201
+    return jsonify({"success": f"successfully add new topic", "topic_id": new_topic.id}), 201
 
 
 @topic_bp.route("", methods=["PUT"])
@@ -79,11 +78,11 @@ def update_topic():
     else:
         return jsonify(caution={"message": "you provided same data as in the database and nothing got updated"})
 
-    topic.last_update = datetime.now(pytz.utc).replace(microsecond=0)
     db.session.commit()
     if include:
+        updated_topic = Topic.query.filter_by(id=topic.id).first()
         return jsonify({"success": f"successfully updated a topic",
-                        "topic": topic.to_dict()}), 200
+                        "topic": updated_topic.to_dict()}), 200
     return jsonify({"success": f"successfully updated a topic", "topic_id": {topic.id}}), 200
 
 

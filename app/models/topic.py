@@ -3,24 +3,20 @@ from sqlalchemy.orm import relationship
 from app.extensions import db
 from datetime import datetime
 
-from app.models.task import Task
-
 
 class Topic(db.Model):
     __tablename__ = "topics"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String, nullable=False)
     emoji = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False)
-    last_update = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.now(pytz.utc))
+    last_update = db.Column(db.DateTime(timezone=True), onupdate=datetime.now(pytz.utc), nullable=True)
     status = db.Column(db.String, nullable=False)
     num_completed_tasks = db.Column(db.Integer, nullable=False)
     progression = db.Column(db.Integer, nullable=False)
     # relations
-    tasks = relationship(Task.__name__, back_populates=Task.topic)
-    # not implemented
-    # user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    # users = relationship("User", secondary=user_topic, back_populates="topics")
+    tasks = relationship("Task", back_populates="topic")
+    users = relationship("User", secondary="association_table", back_populates="topics")
 
     def to_dict(self):
         topic_dict = {

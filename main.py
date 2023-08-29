@@ -195,7 +195,6 @@ def all_task(topic_id):
         "num_of_tasks": len(result),
         "tasks": [task.to_dict() for task in result]
     }
-    print(response)
     return jsonify(response), 200
 
 
@@ -292,8 +291,9 @@ def edit_task(topic_id):
     task.last_update = datetime.now(pytz.utc).replace(microsecond=0)
     db.session.commit()
     if include:
+        edited_task = Task.query.filter_by(id=task.id).first
         return jsonify({"success": f"successfully updated a task",
-                        "task": task.to_dict()})
+                        "task": edited_task.to_dict()})
     return jsonify({"success": f"successfully updated a task", "task_id": task.id, "topic_id": task.topic.id})
 
 

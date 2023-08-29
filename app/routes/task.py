@@ -47,14 +47,12 @@ def add_task(topic_id):
     if None in [title, detail, emoji, due_time, status]:
         return abort(400, "'title', 'due_time', 'detail' and 'emoji' values are required")
 
-    timestamp = datetime.now(pytz.utc).replace(microsecond=0)
     new_task = Task(
         title=title,
         detail=detail,
         emoji=emoji,
         due_time=due_time,
         status=status,
-        created_at=timestamp,
         topic=topic
     )
     db.session.add(new_task)
@@ -76,7 +74,7 @@ def add_task(topic_id):
     ), 200
 
 
-@task_bp.route("/topic/<int:topic_id>/task", methods=["PUT"])
+@task_bp.route("", methods=["PUT"])
 def edit_task(topic_id):
     data = request.form.to_dict()
     task_id = limit_whitespace(data.get("task_id"))
@@ -115,12 +113,12 @@ def edit_task(topic_id):
     else:
         return jsonify(caution={"message": "you provided same data as in the database and nothing got updated"})
 
-    task.last_update = datetime.now(pytz.utc).replace(microsecond=0)
     task.topic.progression_calc()
     db.session.commit()
     if include:
+        updated_task = Task.query.filter_by(id=task.id).first()
         return jsonify({"success": f"successfully updated a task",
-                        "task": task.to_dict()})
+                        "task": updated_task.to_dict()})
     return jsonify({"success": f"successfully updated a task", "task_id": task.id, "topic_id": task.topic.id})
 
 

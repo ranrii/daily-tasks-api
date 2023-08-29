@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify, abort
 from sqlalchemy import func
+
 from app.models.task import Task
 from app.models.topic import Topic
+
 from utils import limit_whitespace
 
 search_bp = Blueprint("search", __name__, url_prefix="/search")
