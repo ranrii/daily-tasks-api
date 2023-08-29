@@ -24,6 +24,7 @@ class User(db.Model):
     username = db.Column(db.String, nullable=False)
     password = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
     is_block = db.Column(db.Boolean, nullable=False)
     profile = relationship("Profile", uselist=False, back_populates="user")
     topics = relationship("Topic", secondary=user_topics, back_populates="users")

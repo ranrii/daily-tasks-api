@@ -12,8 +12,8 @@ from app.routes.topic import topic_bp
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
     app.config.from_pyfile("../instance/config.py")
+    CORS(app)
     db.app = app
     db.init_app(app)
     migrate = Migrate(app, db)
