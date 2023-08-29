@@ -10,3 +10,7 @@ Flask-WTF~=1.1.1
 python-dotenv~=1.0.0
 WTForms~=3.0.1
 pytz~=2023.3
+
+alembic~=1.11.2
+flask-httpauth~=4.8.0
+PyJWT~=2.8.0
