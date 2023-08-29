@@ -36,7 +36,10 @@ class Topic(db.Model):
 
     def progression_calc(self):
         self.count_complete()
-        if self.num_completed_tasks == len(self.tasks):
+        if len(self.tasks) == 0:
+            self.progression = 0
+            self.status = "Pending"
+        elif self.num_completed_tasks == len(self.tasks):
             self.status = "Complete"
             self.progression = 100
         else:

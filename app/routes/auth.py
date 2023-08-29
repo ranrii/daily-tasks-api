@@ -1,4 +1,3 @@
-from datetime import datetime
 from functools import wraps
 
 import jwt
@@ -6,10 +5,9 @@ from email_validator import validate_email, EmailNotValidError
 from flask import Blueprint, request, jsonify, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 
-import app
 from app.extensions import db
 from app.models.user import User
-from utils import get_ip_addr
+from app.utils import get_ip_addr
 
 auth_bp = Blueprint("auth", __name__,)
 

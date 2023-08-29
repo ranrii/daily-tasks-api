@@ -1,29 +1,18 @@
-import pytz
 from flask import Blueprint, jsonify, request, abort
 from app.models.topic import Topic
 from sqlalchemy import func
-from utils import limit_whitespace
+from app.utils import limit_whitespace
 from app.extensions import db
-from datetime import datetime
 
 topic_bp = Blueprint("topic", __name__, url_prefix="/topic")
-
-
-@topic_bp.route("/search", methods=["GET"])
-def search_topic():
-    search_query = limit_whitespace(request.args.get("title"))
-    result = Topic.query.filter(Topic.title.like(f"%{search_query}%"))
-    result = result.order_by(func.coalesce(Topic.last_update, Topic.created_at)).all()
-    response = {
-        "no_of_topic": len(result),
-        "topics": [topic.to_dict() for topic in result]
-    }
-    return jsonify(response), 200
 
 
 @topic_bp.route("", methods=["GET"])
 def all_topic():
     result = Topic.query.order_by(func.coalesce(Topic.last_update, Topic.created_at)).all()
+    for topic in result:
+        topic.progression_calc()
+    db.session.commit()
     topics = {
         "no_of_topic": len(result),
         "topics": [topic.to_dict() for topic in result]
