@@ -11,12 +11,12 @@ class Topic(db.Model):
     emoji = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.now(pytz.utc))
     last_update = db.Column(db.DateTime(timezone=True), onupdate=datetime.now(pytz.utc), nullable=True)
-    status = db.Column(db.String, nullable=False)
-    num_completed_tasks = db.Column(db.Integer, nullable=False)
-    progression = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String, default="Pending", nullable=False)
+    num_completed_tasks = db.Column(db.Integer, default=0, nullable=False)
+    progression = db.Column(db.Integer, default=0, nullable=False)
     # relations
     tasks = relationship("Task", back_populates="topic")
-    users = relationship("User", secondary="association_table", back_populates="topics")
+    users = relationship("User", secondary="user_topics", back_populates="topics")
 
     def to_dict(self):
         topic_dict = {

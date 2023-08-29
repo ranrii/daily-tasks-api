@@ -19,7 +19,7 @@ class Task(db.Model):
     # relations
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"))
     topic = relationship("Topic", back_populates="tasks")
-    users = relationship("User", secondary="association_table", back_populates="tasks")
+    users = relationship("User", secondary="user_tasks", back_populates="tasks")
 
     def to_dict(self):
         task_dict = {

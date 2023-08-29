@@ -5,24 +5,29 @@ from sqlalchemy.orm import relationship
 from app.extensions import db
 
 
-association_table = db.Table(
-    "association_table",
+user_topics = db.Table(
+    "user_topics",
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
-    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id"), primary_key=True),
     db.Column("topic_id", db.Integer, db.ForeignKey("topics.id"), primary_key=True)
+)
+
+user_tasks = db.Table(
+    "user_tasks",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id"), primary_key=True)
 )
 
 
 class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String, unique=True, nullable=False)
+    username = db.Column(db.String, nullable=False)
     password = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     is_block = db.Column(db.Boolean, nullable=False)
     profile = relationship("Profile", uselist=False, back_populates="user")
-    topics = relationship("Topic", secondary=association_table, lazy="subquery", back_populates="users")
-    tasks = relationship("Task", secondary=association_table, lazy="subquery", back_populates="users")
+    topics = relationship("Topic", secondary=user_topics, back_populates="users")
+    tasks = relationship("Task", secondary=user_tasks, back_populates="users")
 
 
 class Profile(db.Model):
