@@ -10,9 +10,6 @@ topic_bp = Blueprint("topic", __name__, url_prefix="/topic")
 @topic_bp.route("", methods=["GET"])
 def all_topic():
     result = Topic.query.order_by(func.coalesce(Topic.last_update, Topic.created_at)).all()
-    for topic in result:
-        topic.progression_calc()
-    db.session.commit()
     topics = {
         "no_of_topic": len(result),
         "topics": [topic.to_dict() for topic in result]
