@@ -5,7 +5,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models.task import Task
 from app.models.topic import Topic
-from app.utils import limit_whitespace, dt_from_string
+from utils.text import limit_whitespace, dt_from_string
 
 task_bp = Blueprint("task", __name__, url_prefix="/topic/<int:topic_id>/task")
 

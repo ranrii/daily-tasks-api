@@ -4,7 +4,7 @@ from sqlalchemy import func
 from app.models.task import Task
 from app.models.topic import Topic
 
-from app.utils import limit_whitespace
+from utils.text import limit_whitespace
 
 search_bp = Blueprint("search", __name__, url_prefix="/search")
 

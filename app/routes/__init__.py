@@ -25,7 +25,8 @@ def verify_token(token):
                 "verify_iss": True,
                 "verify_exp": True
             },
-            issuer="ranrii"
+            issuer="ranrii",
+            leeway=300
         )
     except InvalidSignatureError:
         return abort(401, "invalid token")
@@ -37,14 +38,15 @@ def verify_token(token):
         db.select(User).where(User.id == decoded["sub"] and User.email == decoded["aud"])).one_or_none()
     if user is None:
         return abort(401, "no user associated with this token")
+    return True
 
 
-def issue_token(user):
+def issue_token(user, length: int):
     payload = {
         "iss": "ranrii",
         "sub": user.id,
         "aud": user.email,
         "iat": time.time(),
-        "exp": time.time()+604800
+        "exp": time.time()+length
     }
     return jwt.encode(payload=payload, key=current_app.secret_key, algorithm="HS256")

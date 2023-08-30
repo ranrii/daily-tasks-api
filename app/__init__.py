@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_migrate import Migrate
 
+from app.config.development import DevelopmentConfig
 from app.extensions import db
 from app.routes.auth import auth_bp
 from app.routes.error import error_bp
@@ -12,7 +13,7 @@ from app.routes.topic import topic_bp
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_pyfile("../instance/config.py")
+    app.config.from_object("app.config.development.DevelopmentConfig")
     CORS(app)
     db.app = app
     db.init_app(app)
