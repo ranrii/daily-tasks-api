@@ -1,14 +1,13 @@
 
 import jwt
-from email_validator import validate_email, EmailNotValidError
 from flask import Blueprint, request, jsonify, abort, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.extensions import db
-from app.models.user import User
+from app.models.user import User, Profile
 from app.routes import issue_token, verify_token
 from utils.connection import get_ip_addr
-from utils.mail_service import send_mail
+from utils.mail_service import send_mail, check_email
 from smtplib import SMTPException
 auth_bp = Blueprint("auth", __name__)
 
@@ -16,45 +15,44 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.form.to_dict()
-    if "email" not in data or "password" not in data:
+    if None in [data.get("email"), data.get("password")]:
         return abort(401, "invalid login details")
-    try:
-        email_info = validate_email(data.get("email"), check_deliverability=False)
-    except EmailNotValidError as e:
-        return abort(501, str(e))
-
-    user = User.query.filter_by(email=email_info.normalized).first()
+    email = check_email(data.get("email"))
+    user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+    if user is None:
+        return abort(404, "user not found")
     password = data.get("password")
-    if not check_password_hash(password, user.password):
+    if not check_password_hash(user.password, password):
         return abort(403, "Invalid login details")
 
-    return jsonify({"token": issue_token(user, 3600)}), 200
+    return jsonify({"user": {"id": user.id, "username": user.username}, "token": issue_token(user, 3600)}), 200
 
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
     data = request.form.to_dict()
-    if None in data:
+    if None in [data.get("username"),
+                data.get("first_name"),
+                data.get("last_name"),
+                data.get("password"),
+                data.get("email")]:
         return abort(400, "missing required data")
-    try:
-        email_info = validate_email(data.get("email"), check_deliverability=False)
-    except EmailNotValidError as e:
-        return abort(510, str(e))
-    if db.session.execute(db.select(User).where(User.email == email_info.normalized)).one_or_none() is not None:
+    email = check_email(data.get("email"))
+    if db.session.execute(db.select(User).where(User.email == email)).one_or_none() is not None:
         return abort(400, "user has already registered")
 
     user = User()
+    user_profile = Profile(user=user)
     user.username = data.get("username")
     user.password = generate_password_hash(data.get("password"), method="pbkdf2", salt_length=10)
-    user.first_name = data.get("first_name")
-    user.last_name = data.get("last_name")
-    user.email = email_info.normalized
     user.login_ip = get_ip_addr()
-    user.is_block = False
-    user.is_admin = False
+    user_profile.first_name = data.get("first_name")
+    user_profile.last_name = data.get("last_name")
+    user.email = email
     db.session.add(user)
+    db.session.add(user_profile)
     db.session.commit()
-    return jsonify({"token": issue_token(user, 3600)}), 200
+    return jsonify({"user": {"id": user.id, "username": user.username}, "token": issue_token(user, 3600)}), 200
 
 
 @auth_bp.route("/refresh", methods=["GET"])
@@ -70,7 +68,8 @@ def refresh_token():
     )
     if "sub" not in decoded or "aud" not in decoded or "iat" not in decoded:
         return abort(401, "invalid token")
-    user = db.session.execute(db.select(User).where(User.id == decoded["sub"] and User.username == decoded["aud"])).one_or_none()
+    user = db.session.execute(
+        db.select(User).where(User.id == decoded["sub"] and User.username == decoded["aud"])).one_or_none()
     if user is None:
         return abort(401, "no user associated with this token")
     current_ip = get_ip_addr()
@@ -86,8 +85,10 @@ def forgor():
     return jsonify(error="not implemented") # remove this before implementing User
 
     data = request.form.to_dict()
-    if "email" not in data:
-        return abort(401, "no email provided")
+    email = check_email(data.get("email"))
+    url = data.get("url")
+    if None in [email, url]:
+        return abort(401, "missing required data")
     user = db.session.execute(db.select(User).where(User.email == data["email"])).one_or_none()
     if user is None:
         return abort(404, "user not found")
@@ -112,7 +113,8 @@ def reset_password():
     data = request.form.to_dict()
     if "password" not in data:
         return abort(400, "new password is required")
-    user = db.session.execute(db.select(User).where(User.id == decoded["sub"] and User.email == decoded["aud"])).one_or_none()
+    user = db.session.execute(
+        db.select(User).where(User.id == decoded["sub"] and User.email == decoded["aud"])).one_or_none()
     if user is None:
         return abort(404, "user not found")
     user.password = generate_password_hash(data.get("password"), method="pbkdf2", salt_length=10)

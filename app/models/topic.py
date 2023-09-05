@@ -15,7 +15,7 @@ class Topic(db.Model):
     num_completed_tasks = db.Column(db.Integer, default=0, nullable=False)
     progression = db.Column(db.Integer, default=0, nullable=False)
     # relations
-    tasks = relationship("Task", back_populates="topic")
+    tasks = relationship("Task", back_populates="topic", cascade="all, delete-orphan")
     users = relationship("User", secondary="user_topics", back_populates="topics")
 
     def to_dict(self):
