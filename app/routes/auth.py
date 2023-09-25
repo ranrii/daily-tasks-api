@@ -1,11 +1,15 @@
+import datetime
 
 import jwt
+import pytz
 from flask import Blueprint, request, jsonify, abort, current_app
+from sqlalchemy import select
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.extensions import db
+from app.middleware.auth import jwt_required
 from app.models.user import User, Profile
-from app.routes import issue_token, verify_token
+from app.middleware.token import decode_token, issue_token
 from utils.connection import get_ip_addr
 from utils.mail_service import send_mail, check_email
 from smtplib import SMTPException
@@ -18,14 +22,25 @@ def login():
     if None in [data.get("email"), data.get("password")]:
         return abort(401, "invalid login details")
     email = check_email(data.get("email"))
-    user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+    user = db.session.execute(db.select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
         return abort(404, "user not found")
     password = data.get("password")
     if not check_password_hash(user.password, password):
-        return abort(403, "Invalid login details")
+        return abort(401, "Invalid login details")
+    user.login_at = datetime.datetime.now(pytz.utc)
+    db.session.commit()
+    return jsonify({"user": {"id": user.id, "username": user.username},
+                    "token": issue_token(user, 3600),
+                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
 
-    return jsonify({"user": {"id": user.id, "username": user.username}, "token": issue_token(user, 3600)}), 200
+
+@auth_bp.route("/logout", methods=["PUT"])
+@jwt_required()
+def logout(current_user):
+    current_user.login_at = None
+    db.session.commit()
+    return jsonify({"success": "user has been logged out"}), 200
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -38,7 +53,7 @@ def register():
                 data.get("email")]:
         return abort(400, "missing required data")
     email = check_email(data.get("email"))
-    if db.session.execute(db.select(User).where(User.email == email)).one_or_none() is not None:
+    if db.session.scalar(select(User).where(User.email == data["email"])) is not None:
         return abort(400, "user has already registered")
 
     user = User()
@@ -46,53 +61,58 @@ def register():
     user.username = data.get("username")
     user.password = generate_password_hash(data.get("password"), method="pbkdf2", salt_length=10)
     user.login_ip = get_ip_addr()
+    user.login_at = datetime.datetime.now(pytz.utc)
     user_profile.first_name = data.get("first_name")
     user_profile.last_name = data.get("last_name")
     user.email = email
     db.session.add(user)
     db.session.add(user_profile)
     db.session.commit()
-    return jsonify({"user": {"id": user.id, "username": user.username}, "token": issue_token(user, 3600)}), 200
+    return jsonify({"user": {"id": user.id, "username": user.username},
+                    "token": issue_token(user, 3600),
+                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
 
 
-@auth_bp.route("/refresh", methods=["GET"])
+@auth_bp.route("/refresh", methods=["POST"])
 def refresh_token():
-    if "token" not in request.headers:
-        return abort(401, "no token provided")
     old_token = request.headers.get("token")
-    decoded = jwt.decode(
-        old_token,
-        key=current_app.secret_key,
-        algorithms="HS256",
-        options={"require": ["sub", "aud", "iat"]}
-    )
-    if "sub" not in decoded or "aud" not in decoded or "iat" not in decoded:
-        return abort(401, "invalid token")
-    user = db.session.execute(
-        db.select(User).where(User.id == decoded["sub"] and User.username == decoded["aud"])).one_or_none()
+    r_token = request.headers.get("refresh-token")
+    if None in [r_token, old_token]:
+        return abort(401, "both `token` and `refresh_token` are required")
+
+    d_access = decode_token(token=old_token, token_type="access", refresh=True)
+    d_refresh = decode_token(token=r_token, token_type="refresh")
+    if d_access != d_refresh:
+        return abort(403, "invalid token(s)")
+
+    user = db.session.scalar(select(User).where(User.id == d_refresh["sub"]))
     if user is None:
-        return abort(401, "no user associated with this token")
+        return abort(404, "user not found")
+
     current_ip = get_ip_addr()
     if current_ip != user.login_ip:
-        return abort(401, "user location changed, please login again")
-    return jsonify({"token": issue_token(user, 3600)}), 200
+        return abort(401, "location changed, please login again")
+
+    return jsonify({"user": {"id": user.id, "username": user.username},
+                    "token": issue_token(user, 3600),
+                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
 
 
 # WIP or not implemented BELOW ⤵
 # noinspection PyUnreachableCode
 @auth_bp.route("/forget", methods=["POST"])
 def forgor():
-    return jsonify(error="not implemented") # remove this before implementing User
+    return jsonify(error="not implemented")
 
     data = request.form.to_dict()
     email = check_email(data.get("email"))
     url = data.get("url")
     if None in [email, url]:
         return abort(401, "missing required data")
-    user = db.session.execute(db.select(User).where(User.email == data["email"])).one_or_none()
+    user = db.session.execute(db.select(User).where(User.email == data["email"])).scalar_one_or_none()
     if user is None:
         return abort(404, "user not found")
-    token = issue_token(user, 180)
+    token = issue_token(user, 180, token_type="reset_pw")
     reset_url = f"<insert-url-to-reset-password-page-here>?reset-key={token}"
     try:
         send_mail(user, reset_url)
@@ -104,17 +124,15 @@ def forgor():
 # noinspection PyUnreachableCode
 @auth_bp.route("/reset", methods=["POST"])
 def reset_password():
-    return jsonify(error="not implemented") # remove this before implementing User
+    return jsonify(error="not implemented")
 
     token = request.args.get("reset-key")
-    if not verify_token(token):
-        return abort(401, "unauthorized")
-    decoded = jwt.decode(token, key=current_app.secret_key, algorithms="HS256")
+    decoded = decode_token(token, token_type="reset_pw")
     data = request.form.to_dict()
     if "password" not in data:
         return abort(400, "new password is required")
     user = db.session.execute(
-        db.select(User).where(User.id == decoded["sub"] and User.email == decoded["aud"])).one_or_none()
+        db.select(User).where(User.id == decoded["sub"] and User.email == decoded["aud"])).scalar_one_or_none()
     if user is None:
         return abort(404, "user not found")
     user.password = generate_password_hash(data.get("password"), method="pbkdf2", salt_length=10)

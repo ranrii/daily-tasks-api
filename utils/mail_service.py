@@ -17,7 +17,7 @@ def send_mail(user_data, url_key):
             connection.sendmail(
                 from_addr=current_app.config.get("EMAIL"), to_addrs=user_data.email, msg=msg.as_string())
     else:
-        return jsonify(error="not implemented"), 404
+        return jsonify(error="not implemented"), 501
 
 
 def check_email(user_email):
@@ -26,5 +26,5 @@ def check_email(user_email):
     try:
         email_info = validate_email(user_email, check_deliverability=current_app.config["REAL_MAIL"])
     except EmailNotValidError as e:
-        return abort(510, str(e))
+        return abort(400, str(e))
     return email_info.normalized

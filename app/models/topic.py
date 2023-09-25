@@ -15,6 +15,8 @@ class Topic(db.Model):
     num_completed_tasks = db.Column(db.Integer, default=0, nullable=False)
     progression = db.Column(db.Integer, default=0, nullable=False)
     # relations
+    creator_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    creator = relationship("User", back_populates="created_topics")
     tasks = relationship("Task", back_populates="topic", cascade="all, delete-orphan")
     users = relationship("User", secondary="user_topics", back_populates="topics")
 
@@ -25,13 +27,15 @@ class Topic(db.Model):
             "emoji": self.emoji,
             "status": self.status,
             "progression": self.progression,
-            "created_at": datetime.isoformat(self.created_at.replace(tzinfo=pytz.utc)),
+            "created_at": datetime.isoformat(self.created_at.replace(tzinfo=pytz.utc, microsecond=0)),
             "tasks": [task.to_dict() for task in self.tasks],
             "no_of_tasks": len(self.tasks),
             "editStatus": False,
+            "owner": self.creator.username,
+            "users": [user.to_dict() for user in self.users]
         }
         if self.last_update is not None:
-            topic_dict["last_update"] = datetime.isoformat(self.last_update.replace(tzinfo=pytz.utc))
+            topic_dict["last_update"] = datetime.isoformat(self.last_update.replace(tzinfo=pytz.utc, microsecond=0))
         return topic_dict
 
     def progression_calc(self):

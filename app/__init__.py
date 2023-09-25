@@ -17,7 +17,7 @@ def create_app():
     CORS(app)
     db.app = app
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     with app.app_context():
         db.create_all()
     app.register_blueprint(task_bp)

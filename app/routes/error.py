@@ -18,6 +18,11 @@ def unauthorized(error):
     return jsonify(error={"code": 401, "message": error.description}), 401
 
 
+@error_bp.app_errorhandler(403)
+def unauthorized(error):
+    return jsonify(error={"code": 403, "message": error.description}), 403
+
+
 @error_bp.app_errorhandler(415)
 def unsupported(error):
     return jsonify(error={"code": 415, "message": "please format your data in the dictionary-typed/json format"}), 415
@@ -25,4 +30,13 @@ def unsupported(error):
 
 @error_bp.app_errorhandler(500)
 def generic_error(error):
-    return jsonify(error={"message": "bug alert, check the logs"}), 500
+    message = {"message": "bug alert, check the logs"}
+    if error.description:
+        message["info"] = error.description
+    return jsonify(error=message), 500
+
+
+@error_bp.app_errorhandler(501)
+def not_implemented(error):
+    return jsonify(error={"code": 501, "message": error.description}), 501
+
