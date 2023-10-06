@@ -2,7 +2,7 @@ import time
 
 import jwt
 from flask import current_app, abort
-from jwt import InvalidSignatureError, DecodeError, ExpiredSignatureError
+from jwt import InvalidSignatureError, DecodeError, ExpiredSignatureError, InvalidAlgorithmError, InvalidTokenError
 
 from app.models.user import User
 
@@ -14,7 +14,8 @@ def decode_token(token, token_type="access", refresh=False):
         secret_key = "RESET_PASSWORD_SECRET"
     else:
         secret_key = "ACCESS_TOKEN_SECRET"
-
+    if current_app.testing:
+        refresh = current_app.config["NO_EXP_TOKEN"]
     try:
         decoded = jwt.decode(
             token,
@@ -24,7 +25,7 @@ def decode_token(token, token_type="access", refresh=False):
                 "require": ["iss", "sub", "aud", "iat", "exp"],
                 "verify_signature": True,
                 "verify_iss": True,
-                "verify_exp": False if refresh else True,
+                "verify_exp": not refresh,
                 "verify_aud": False
             },
             issuer="ranrii",
@@ -36,6 +37,8 @@ def decode_token(token, token_type="access", refresh=False):
         return abort(401, "invalid token")
     except ExpiredSignatureError:
         return abort(401, "token expired")
+    except InvalidTokenError:
+        return abort(401, "invalid token")
     if refresh or token_type == "refresh":
         del decoded["exp"], decoded["iat"]
     return decoded

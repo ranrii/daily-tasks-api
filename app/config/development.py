@@ -14,3 +14,4 @@ class DevelopmentConfig(Config):
     TESTING = True
     EMAIL = i.email
     M_PW = i.email_pw
+    NO_EXP_TOKEN = True

@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from flask import Blueprint, request, jsonify, abort
 from sqlalchemy import func, select, and_, or_
 
@@ -63,6 +65,7 @@ def user_search(current_user):
     cursor = select(User).where(User.username.like(f"%{name}%"))
     results = db.session.scalars(cursor).all()
     users = [user.to_dict() for user in results]
+    pprint(users)
     return jsonify(users), 200
 
 

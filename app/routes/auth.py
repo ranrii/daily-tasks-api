@@ -32,7 +32,7 @@ def login():
     db.session.commit()
     return jsonify({"user": {"id": user.id, "username": user.username},
                     "token": issue_token(user, 3600),
-                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
+                    "refreshToken": issue_token(user, 259200, token_type="refresh")}), 200
 
 
 @auth_bp.route("/logout", methods=["PUT"])
@@ -70,15 +70,17 @@ def register():
     db.session.commit()
     return jsonify({"user": {"id": user.id, "username": user.username},
                     "token": issue_token(user, 3600),
-                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
+                    "refreshToken": issue_token(user, 259200, token_type="refresh")}), 200
 
 
 @auth_bp.route("/refresh", methods=["POST"])
 def refresh_token():
+    print(request.headers)
     old_token = request.headers.get("token")
     r_token = request.headers.get("refresh-token")
+    print([r_token, old_token])
     if None in [r_token, old_token]:
-        return abort(401, "both `token` and `refresh_token` are required")
+        return abort(401, "both `token` and `refresh-token` are required")
 
     d_access = decode_token(token=old_token, token_type="access", refresh=True)
     d_refresh = decode_token(token=r_token, token_type="refresh")
@@ -91,11 +93,15 @@ def refresh_token():
 
     current_ip = get_ip_addr()
     if current_ip != user.login_ip:
+        user.login_at = None
+        db.session.commit()
         return abort(401, "location changed, please login again")
+    user.login_at = datetime.datetime.now(pytz.utc)
+    db.session.commit()
 
     return jsonify({"user": {"id": user.id, "username": user.username},
                     "token": issue_token(user, 3600),
-                    "refresh-token": issue_token(user, 259200, token_type="refresh")}), 200
+                    "refreshToken": issue_token(user, 86400, token_type="refresh")}), 200
 
 
 # WIP or not implemented BELOW ⤵

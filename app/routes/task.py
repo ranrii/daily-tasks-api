@@ -1,13 +1,12 @@
 import pytz
 from flask import Blueprint, abort, jsonify, request, g
-from sqlalchemy import func, select, insert, and_, or_
+from sqlalchemy import select, and_
 
 from app.extensions import db
 from app.middleware.auth import jwt_required
 from app.middleware.permissions import check_permission, grant_permission
 from app.models.task import Task
 from app.models.topic import Topic
-from app.models.user import User, user_topic, user_task
 from app.routes import get_user
 from utils.text import limit_whitespace, dt_from_string
 
@@ -15,15 +14,15 @@ task_bp = Blueprint("task", __name__, url_prefix="/topic/<int:topic_id>")
 
 
 @task_bp.before_request
-@jwt_required()
-def load_topic(current_user):
+def load_topic():
     topic_id = request.view_args.get("topic_id")
+    if topic_id is None:
+        return jsonify(error={"code": 400, "message": "no `topic_id` provided"}), 400
+
     topic = db.session.scalar(select(Topic).where(Topic.id == topic_id))
 
     if topic is None:
-        return abort(404, f"topic id {topic_id} not found")
-
-    check_permission(current_user, topic, ["user"])
+        return jsonify(error={"code": 404, "message": f"topic id {topic_id} not found"}), 404
     topic.progression_calc()
     g.topic = topic
 
@@ -31,6 +30,7 @@ def load_topic(current_user):
 @task_bp.route("/task", methods=["GET"])
 @jwt_required()
 def all_task(current_user, topic_id):
+    check_permission(current_user, g.topic, ["user"])
     result = g.topic.tasks
     if result is None:
         return abort(404, f"not found tasks associated with topic id={g.topic.id}")
@@ -182,15 +182,16 @@ def delete_task(current_user, topic_id):
 @jwt_required()
 def contribute(current_user, topic_id):
     contributor_id = request.form.get("user_id")
+    if contributor_id is None:
+        return abort(400, "`user_id` is required")
+    if contributor_id == current_user.id:
+        return abort(400, "you already have permission")
     role = request.form.get("role", "user")
     if role not in ["user", "moderator"]:
         return abort(403, "only 'user' and 'moderator' are allowed to set the user's role")
     check_permission(current_user, g.topic, ["creator", "moderator"])
-    if contributor_id is None:
-        return abort(400, "`user_id` is required")
     contributor = get_user(contributor_id)
-    association = user_topic(user_id=contributor.id, topic_id=g.topic.id, role=role)
-    db.session.add(association)
+    grant_permission(contributor, g.topic, role)
     db.session.commit()
     return jsonify({"success": f"added the user {contributor.username} to the topic {g.topic.id}"}), 201
 
@@ -209,21 +210,21 @@ def get_task(current_user, task_id, topic_id):
 @jwt_required()
 def task_contribute(current_user, task_id, topic_id):
     contributor_id = request.form.get("user_id")
+    if contributor_id is None:
+        return abort(400, "`user_id` is required")
+    if current_user.id == contributor_id:
+        return abort(400, "you already granted permission")
     role = request.form.get("role", "user")
     task = db.session.scalar(select(Task).where(Task.id == task_id))
 
     # creator/moderators of this task or topic are allowed
-    check_permission(current_user, [task, g.topic], ["creator", "moderator"])
-    if contributor_id is None:
-        return abort(400, "`user_id` is required")
+    check_permission(current_user, [task, g.topic], ["creator", "moderator", "topicOwner"])
     if task is None:
         return abort(404, "task not found")
 
     contributor = get_user(contributor_id)
-    associations = [
-        user_task(user_id=contributor.id, task_id=task_id, role=role),
-        user_topic(user_id=contributor.id, topic_id=g.topic.id, role="user")
-    ]
-    db.session.add_all(associations)
+    grant_permission(contributor, task, role)
+    if contributor not in g.topic.users:
+        grant_permission(contributor, g.topic, "user")
     db.session.commit()
     return jsonify({"success": f"added the user {contributor.username} to the task {task_id}"}), 201
