@@ -75,10 +75,8 @@ def register():
 
 @auth_bp.route("/refresh", methods=["POST"])
 def refresh_token():
-    print(request.headers)
     old_token = request.headers.get("token")
     r_token = request.headers.get("refresh-token")
-    print([r_token, old_token])
     if None in [r_token, old_token]:
         return abort(401, "both `token` and `refresh-token` are required")
 
